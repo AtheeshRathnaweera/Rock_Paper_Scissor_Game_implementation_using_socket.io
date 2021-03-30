@@ -11,7 +11,21 @@ const server = () => {
     });
 
     io.on("connection", (socket) => {
-        console.log("new connection occurred "+socket);
+        console.log("new connection occurred " + socket.id);
+    });
+
+    //middleware for validate user name
+    io.use((socket, next) => {
+        const username = socket.handshake.auth.username;
+
+        console.log("middelware started server index "+username);
+
+        if (!username || typeof username === 'undefined') {
+            console.log("user name not found");
+            return next(new Error("invalid username"));
+        }
+        socket.username = username;
+        next();
     });
 
     httpServer.listen(config.server_port);

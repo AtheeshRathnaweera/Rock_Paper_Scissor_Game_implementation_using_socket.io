@@ -1,0 +1,23 @@
+<p>this is the home page </p>
+
+<script src="https://cdn.socket.io/3.1.3/socket.io.min.js"
+  integrity="sha384-cPwlPLvBTa3sKAgddT6krw0cJat7egBga3DJepJyrLl4Q9/5WLra3rrnMcyTyOnh" crossorigin="anonymous"></script>
+
+<script>
+  var URL = "{{server_url}}";
+  var USER_NAME = "{{session.user_name}}";
+
+  var socket = io(URL, { autoConnect: false });
+  socket.auth = { username : USER_NAME };
+  socket.connect();
+
+  socket.on("connect", () => {
+    console.log(socket.id);
+  });
+
+  //socket.on("connect_error", (err) => {
+   // if (err.message === "invalid username") {
+//      this.usernameAlreadySelected = false;
+ //   }
+  //});
+</script>

@@ -7,13 +7,16 @@ const cookieParser = require('cookie-parser');
 const bodyParser = require('body-parser');
 const compress = require('compression');
 const methodOverride = require('method-override');
-const exphbs  = require('express-handlebars');
+const exphbs = require('express-handlebars');
+const session = require('express-session');
+
+const server = require('../server');
 
 module.exports = (app, config) => {
   const env = process.env.NODE_ENV || 'development';
   app.locals.ENV = env;
   app.locals.ENV_DEVELOPMENT = env == 'development';
-  
+
   app.engine('handlebars', exphbs({
     layoutsDir: config.root + '/app/views/layouts/',
     defaultLayout: 'main',
@@ -32,11 +35,35 @@ module.exports = (app, config) => {
   app.use(compress());
   app.use(express.static(config.root + '/public'));
   app.use(methodOverride());
+  app.use(session({
+    secret: "Shh, its a secret!",
+    resave: false,
+    saveUninitialized: false,
+  }));
+
+  app.use(function (req, res, next) {
+    res.locals.session = req.session;
+    next();
+  });
+
+  //create the server
+  server();
+
+
+
+  app.use((err, req, res, next) => {
+    console.warn("rec error : " + err);
+    if (err.status === 401) {
+      console.error("401 received");
+    }
+  });
 
   var controllers = glob.sync(config.root + '/app/controllers/*.js');
   controllers.forEach((controller) => {
     require(controller)(app);
   });
+
+
 
   app.use((req, res, next) => {
     var err = new Error('Not Found');

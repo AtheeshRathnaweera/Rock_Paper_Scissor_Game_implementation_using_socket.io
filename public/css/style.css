@@ -52,3 +52,7 @@ a {
 .index-page .card-text{
   font-family: 'kiwiMaruLight';
 }
+
+.hide{
+  display: none;
+}
