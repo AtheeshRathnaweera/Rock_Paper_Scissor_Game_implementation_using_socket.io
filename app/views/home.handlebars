@@ -6,18 +6,36 @@
 <script>
   var URL = "{{server_url}}";
   var USER_NAME = "{{session.user_name}}";
+  var CONNECTION_ID = '';
 
-  var socket = io(URL, { autoConnect: false });
-  socket.auth = { username : USER_NAME };
+  var socket = io(URL, {
+    query: {
+      user_name: USER_NAME
+    },
+    reconnection: true,
+    reconnectionAttempts: 10
+  });
+
+  socket.auth = { username: USER_NAME };
   socket.connect();
 
   socket.on("connect", () => {
-    console.log(socket.id);
+    console.log("new socket id : " + socket.id);
+    
+    CONNECTION_ID = socket.id;
   });
 
-  //socket.on("connect_error", (err) => {
-   // if (err.message === "invalid username") {
-//      this.usernameAlreadySelected = false;
- //   }
-  //});
+  // handle the event sent with socket.emit()
+  socket.on("greetings", (message) => {
+    console.log("greetings : " + message);
+  });
+
+  socket.on("connect_error", (err) => {
+    console.log("connection error " + err.message);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("disconnected"); // undefined
+  });
+
 </script>

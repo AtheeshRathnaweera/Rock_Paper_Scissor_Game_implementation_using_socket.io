@@ -16,10 +16,7 @@ const protectedAuth = (req, res, next) => {
     next();
   } else {
     // console.log("already authenticated " + req.session.user_name);
-    res.render('home', {
-      title: 'Home',
-      server_url: config.server_url
-    });
+    res.redirect("/");
   }
 };
 
@@ -46,12 +43,10 @@ router.post('/register', (req, res, next) => {
 
     req.session.user_name = userName;
 
-    res.render('home', {
-      title: 'Home',
-      server_url: config.server_url
-    });
+    res.redirect("/");
     return;
   }
+  
   console.log("user name exist");
   res.render('index', {
     alertType: 'danger',
