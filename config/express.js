@@ -49,8 +49,6 @@ module.exports = (app, config) => {
   //create the server
   server();
 
-
-
   app.use((err, req, res, next) => {
     console.warn("rec error : " + err);
     if (err.status === 401) {

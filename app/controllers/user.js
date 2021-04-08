@@ -4,6 +4,7 @@ const router = express.Router();
 const config = require('../../config/config');
 
 const storageHelper = require('../../storage/helper');
+const helper = require('../helpers');
 
 module.exports = (app) => {
   app.use('/user', router);
@@ -37,21 +38,35 @@ router.post('/register', (req, res, next) => {
 
   if (userName !== null && userName.trim().length > 0 && !userNamesSet.has(userName)) {
     console.log("user name not exist");
+
+    //user name
     userNamesSet.add(userName);
-
     storageHelper.storeAKey("user-names-list", userNamesSet);
-
     req.session.user_name = userName;
 
     res.redirect("/");
     return;
   }
-  
+
   console.log("user name exist");
   res.render('index', {
     alertType: 'danger',
     errorMessage: 'User name already exist. Please try something different.'
   });
+});
+
+router.post('/logout', (req, res, next) => {
+  console.log("log out used started " + req.session.user_name);
+
+  let userNamesSet = storageHelper.get("user-names-list");
+
+  //remove the user name
+  userNamesSet.delete(req.session.user_name);
+  storageHelper.storeAKey("user-names-list", userNamesSet);
+
+  req.session.destroy();
+
+  res.redirect("/user/register");
 });
 
 

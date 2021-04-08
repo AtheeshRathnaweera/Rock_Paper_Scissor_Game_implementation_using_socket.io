@@ -1,7 +1,9 @@
 const config = require('../config/config');
-const Connection = require('../storage/models/connection');
+const SocketConnection = require('../storage/models/socket-connection');
 
 const storageHelper = require('../storage/helper');
+const helper = require("../app/helpers");
+const { info } = require('console');
 
 const server = () => {
     console.log("server init started");
@@ -43,6 +45,7 @@ const server = () => {
                         // If given socket id is exist in list of all sockets, kill it
                         if (socket.id === data.connection_id) {
                             console.log("old connection ended");
+                            OldConnectionEndedAlert(socket);
                             socket.disconnect(true);
                         }
                     });
@@ -59,21 +62,66 @@ const server = () => {
 
             if (!existFound) {
                 console.log("new connection entry added to the pool");
-                let newConnection = new Connection({ user_name: userName, connection_id: connectionId });
+
+                //user avatar for new connection
+                let avatarName = helper.getARandomAvatarName();
+
+                let newConnection = new SocketConnection(
+                    {
+                        user_name: userName,
+                        connection_id: connectionId,
+                        avatar_name: avatarName
+                    }
+                );
                 connectionsPool.add(newConnection);
             }
 
             storageHelper.storeAKey("connections-pool", new Set(connectionsPool));
 
-            socket.on("reconnected", (newSocketId) => {
-                console.log("reconnected : " + newSocketId);
+            //broadcast to all the clients
+            broadcastConnectionsPoolUpdate(connectionsPool);
+
+            socket.on("logout", (data) => {
+                connectionsPool.forEach(function (data) {
+
+                    if (data.user_name === userName) {
+                        io.sockets.sockets.forEach((socket) => {
+                            // If given socket id is exist in list of all sockets, kill it
+                            if (socket.id === data.connection_id) {
+                                socket.disconnect(true);
+                            }
+                        });
+
+                        //remove the current connection from the connection pool
+                        connectionsPool.delete(data);
+                        return;
+                    }
+                });
+
+                //broadcast to all the clients
+                broadcastConnectionsPoolUpdate(connectionsPool);
             });
         } else {
             console.log("user name is not found in the user names list");
-            socket.disconnect();
+            socket.emit("disconnected-forever", "Bye");
+
+            socket.disconnect(true);
+
+            connectionsPool = storageHelper.get("connections-pool");
+
+            //broadcast to all the clients
+            broadcastConnectionsPoolUpdate(connectionsPool);
         }
 
     });
+
+    function broadcastConnectionsPoolUpdate(updatedConnectionPool) {
+        io.sockets.emit("connection-pool-update", { pool: Array.from(updatedConnectionPool) });
+    }
+
+    function OldConnectionEndedAlert(socket) {
+        socket.emit("old-connection-alert", { value: true, message: "" });
+    }
 
     //middleware for validate user name
     io.use((socket, next) => {
@@ -81,6 +129,7 @@ const server = () => {
 
         if (!username || typeof username === 'undefined') {
             console.log("user name not found");
+            // socket.disconnect();
             return next(new Error("invalid username"));
         }
         socket.username = username;
