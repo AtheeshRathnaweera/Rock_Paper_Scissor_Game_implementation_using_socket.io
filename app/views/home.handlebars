@@ -1,4 +1,6 @@
 <div class="body-holder">
+  <div class="alerts-holder"></div>
+
   <div class="user-search-holder">
     <form class="search-user-form">
       <div class="col-auto">
@@ -44,15 +46,16 @@
   var docHeight = $(document).height();
 
   var usersRow = $("#users-row");
+  var alertHolder = $(".alerts-holder");
 
-  console.log("nav bar height : " + navBarHeight);
-  console.log("doc height : " + docHeight);
+  var connectionPool = [];
 
   $(".body-holder").css("margin-top", navBarHeight);
 
   var URL = "{{server_url}}";
   var USER_NAME = "{{session.user_name}}";
   var CONNECTION_ID = '';
+  var CONNECTION_DATA = null;
 
   var socket = io(URL, {
     query: {
@@ -65,47 +68,177 @@
   socket.auth = { username: USER_NAME };
   socket.connect();
 
-  socket.on("connect", () => {
+  socket.on("connect", function () {
     console.log("new socket id : " + socket.id);
 
     CONNECTION_ID = socket.id;
   });
 
-  // handle the event sent with socket.emit()
-  socket.on("greetings", (message) => {
-    console.log("greetings : " + message);
+  socket.on("greetings", function (data) {
+    CONNECTION_DATA = data.data;
+
+    createdAlert = $('<div class="alert alert-success" role="alert">Welcome ' + CONNECTION_DATA.user_name + ' !<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button></div>');
+    alertHolder.append(createdAlert);
   });
 
-  socket.on("connect_error", (err) => {
+  socket.on("connect_error", function (err) {
     console.log("connection error " + err.message);
   });
 
-  socket.on("disconnect", () => {
+  socket.on("disconnect", function () {
     console.log("disconnected"); // undefined
   });
 
-  socket.on("disconnected-forever", (message) => {
+  socket.on("disconnected-forever", function (message) {
     console.log("disconnected-forever : " + message);
     $("#logout-form").submit();
   });
 
-  socket.on("connection-pool-update", (data) => {
-    console.log("connection pool update : " + data.pool.length);
+  socket.on("connection-pool-update", function (data) {
+    console.log("connection pool updated");
+
     usersRow.empty();
+    connectionPool.length = 0;
 
     data.pool.forEach(function (item) {
-      usersRow.append('<div class="col-lg-3 col-md-4 col-sm-6 col-xs-12 user-card"><div class="card text-center"><div class="card-body"><img src="/img/avatar-pack/'+item.avatar_name+'" alt="Avatar" class="avatar"><h5 class="card-title">'+item.user_name+'</h5><p class="card-text">12/9</p><a href="#" class="btn btn-success">Go somewhere</a></div></div></div>');
-    });
 
+      //update the local connection var
+      connectionPool.push({
+        connection_id: item.connection_id,
+        user_name: item.user_name
+      });
+
+      if (item.user_name !== USER_NAME) {
+
+        let onClickFun = "challengeAFriend('" + item.user_name + "')";
+        let winPercentage = (item.win_amount / item.played_amount) * 100;
+
+        winPercentage = Number.isNaN(winPercentage) ? 0 : Math.round(winPercentage);
+
+        usersRow.append('<div class="col-lg-3 col-md-4 col-sm-6 col-xs-12 user-card" id="user-' + item.user_name + '"><div class="card text-center"><div class="card-body"><img src="/img/avatar-pack/' + item.avatar_name + '" alt="Avatar" class="avatar"><h5 class="card-title">' + item.user_name + '</h5><p class="card-text">' + winPercentage + '%</p><a onClick="' + onClickFun + '" class="btn btn-success challenge-btn">Challenge</a></div></div></div>');
+
+        //update the sent challenge requests
+        if (item.challenges.received.includes(USER_NAME)) {
+
+          let userCardBtn = changeTheChallengeBtn(item.user_name, "CHALLENGED");
+          userCardBtn.removeClass("btn-success");
+          userCardBtn.addClass("btn-secondary disabled");
+
+          userCardBtn.removeAttr('onclick');
+        }
+
+        //update the receive challenges
+        if (item.challenges.sent.includes(USER_NAME)) {
+
+          let userCardBtn = changeTheChallengeBtn(item.user_name, "ACCEPT");
+          userCardBtn.removeClass("btn-success");
+          userCardBtn.addClass("btn-danger");
+
+          // userCardBtn.removeAttr('onclick');
+        }
+      }
+    });
   });
 
-  socket.on("old-connection-alert",(data)=>{
-    console.log("Old connection ended alert : "+JSON.stringify(data));
+  socket.on("old-connection-alert", function (data) {
+    console.log("Old connection ended alert : " + JSON.stringify(data));
+  });
+
+  //handle the incoming challenge requests
+  socket.on("challenge-request", function (data) {
+
+    console.log("challenge request received : " + JSON.stringify(data));
+
+    let challengerUserName = data.challenger.user_name;
+
+    //show the alert
+    createdAlert = $('<div class="alert alert-danger" role="alert">' + challengerUserName + ' challenged you !<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button></div>');
+    alertHolder.append(createdAlert);
+
+    //update the user card
+    let userCardBtn = changeTheChallengeBtn(challengerUserName, "ACCEPT");
+    userCardBtn.removeClass("btn-success");
+    userCardBtn.addClass("btn-danger");
+  });
+
+  socket.on("challenge-request-callback", function (data) {
+
+    let status = data.status;
+    let targetUserName = data.target_username;
+
+    let message = "";
+    let alertType = "";
+
+    switch (status) {
+      case "success":
+        message = "Challenged completed. Wait till friend respond.";
+        alertType = "success";
+        break;
+      case "failed":
+        message = "This action cannot be complete now ! Please try again.";
+        alertType = "danger";
+        break;
+      case "error":
+        message = "Unexpected error occurred !";
+        alertType = "warning";
+        break;
+    }
+
+    createdAlert = $('<div class="alert alert-' + alertType + '" role="alert">' + message + '<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button></div>');
+    alertHolder.append(createdAlert);
+
+    if (targetUserName) {
+      let userCardBtn = changeTheChallengeBtn(targetUserName, "CHALLENGED");
+      userCardBtn.removeClass("btn-success");
+      userCardBtn.addClass("btn-secondary disabled");
+
+      userCardBtn.removeAttr('onclick');
+    }
   });
 
   function logout() {
     socket.emit("logout", { "user_name": USER_NAME, "connection_id": CONNECTION_ID });
     $("#logout-form").submit();
   }
+
+  function challengeAFriend(userName) {
+    socket.emit("challenge",
+      {
+        "target_user_name": userName,
+        "requester_user_name": USER_NAME
+      });
+  }
+
+  function changeTheChallengeBtn(targetUserName, btnText) {
+    let userCardBtn = $("#user-" + targetUserName).find(".challenge-btn");
+    userCardBtn.html(btnText);
+
+    return userCardBtn;
+  }
+
+  //change the button text of the user card if the user is in challenge requests list
+  function updateTheChallengedUsersCardBtn(challengerId) {
+
+    for (i = 0; i < connectionPool.length; i++) {
+      console.log("id : " + connectionPool[i].connection_id + " " + i);
+
+      if (connectionPool[i].connection_id === challengerId) {
+        console.log("challenger data found : " + JSON.stringify(connectionPool[i]));
+
+        let userName = connectionPool[i].user_name;
+
+        createdAlert = $('<div class="alert alert-danger" role="alert">' + userName + ' challenged you !<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button></div>');
+        alertHolder.append(createdAlert);
+
+        let userCardBtn = changeTheChallengeBtn(userName, "ACCEPT");
+
+        userCardBtn.removeClass("btn-success");
+        userCardBtn.addClass("btn-danger");
+
+        break;
+      }
+    }
+  }
+
 
 </script>

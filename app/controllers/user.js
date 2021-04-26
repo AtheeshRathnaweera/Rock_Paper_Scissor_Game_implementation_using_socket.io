@@ -30,11 +30,8 @@ router.get('/register', protectedAuth, (req, res, next) => {
 
 router.post('/register', (req, res, next) => {
   let userName = req.body.userName;
-  console.log("rec name : " + userName);
 
   userNamesSet = storageHelper.get("user-names-list");
-
-  console.warn("names : " + JSON.stringify(userNamesSet));
 
   if (userName !== null && userName.trim().length > 0 && !userNamesSet.has(userName)) {
     console.log("user name not exist");
@@ -65,6 +62,14 @@ router.post('/logout', (req, res, next) => {
   storageHelper.storeAKey("user-names-list", userNamesSet);
 
   req.session.destroy();
+
+  res.redirect("/user/register");
+});
+
+router.post('/gameRequest/:connectionId', (req, res, next) => {
+  let request_id = req.params.connectionId;
+
+  console.log("user game request started " + request_id);
 
   res.redirect("/user/register");
 });

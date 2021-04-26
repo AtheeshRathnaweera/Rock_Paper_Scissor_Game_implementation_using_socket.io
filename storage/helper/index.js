@@ -5,7 +5,6 @@ module.exports = {
         console.log("it owkred fine");
     },
     storeAKey(key, value) {
-        console.log("save a key started");
         let cacheClient = storageClient.getClient();
 
         success = cacheClient.set(key, value);

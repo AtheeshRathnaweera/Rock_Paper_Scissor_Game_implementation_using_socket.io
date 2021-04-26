@@ -102,6 +102,37 @@ a {
   border-radius: 50%;
 }
 
+.users-section .user-card .challenge-btn{
+  color: white;
+}
+
+.users-section .user-card .challenge-btn:hover{
+  color: white !important;
+}
+
+/* alerts holder */
+.alerts-holder{
+  position: absolute;
+  bottom: 0;
+  right:0;
+  margin: 3vh 1vw 3vh 1vw;
+  width: 30%;
+  z-index: 2;
+}
+
+.alerts-holder .alert{
+  z-index: 2;
+}
+
+#logout-form .user-name{
+  margin-right: 1vw;
+}
+
+.disabled-link{
+  
+}
+
+
 /* for phones */
 
 @media only screen and (max-width: 600px) {
