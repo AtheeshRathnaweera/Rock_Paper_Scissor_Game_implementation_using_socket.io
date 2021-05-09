@@ -24,8 +24,6 @@ module.exports = {
         const avatarImages = storageHelper.get("avatar-images");
         let randomPosition = Math.floor(Math.random() * (avatarImages.length -1) + 0);
 
-        console.log("selected avatar name : " + avatarImages[randomPosition]);
-
         return avatarImages[randomPosition] === undefined ? avatarImages[0] : avatarImages[randomPosition];
     }
 }

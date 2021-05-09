@@ -104,6 +104,7 @@ a {
 
 .users-section .user-card .challenge-btn{
   color: white;
+  text-transform: capitalize;
 }
 
 .users-section .user-card .challenge-btn:hover{

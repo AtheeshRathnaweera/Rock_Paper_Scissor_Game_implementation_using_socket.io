@@ -6,13 +6,14 @@
 
 <script>
     var URL = "{{server_url}}";
-    { { !-- var USER_NAME = "{{session.user_name}}"; --} }
+    //   var USER_NAME = "{{session.user_name}}";
 
     var socket = io(URL, { autoConnect: false });
     {
         {
-            !--socket.auth = { username: USER_NAME };
-            socket.connect(); --}
+            socket.auth = { username: USER_NAME };
+            socket.connect();
+        }
     }
 
     socket.on("connect", () => {
