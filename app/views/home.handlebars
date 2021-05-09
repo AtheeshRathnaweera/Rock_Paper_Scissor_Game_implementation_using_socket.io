@@ -19,18 +19,6 @@
   <div class="users-section">
     <div class="row" style="margin: 0 !important; padding: 0 !important;" id="users-row">
 
-      <div class="col-lg-3 col-md-4 col-sm-6 col-xs-12 user-card">
-        <div class="card text-center">
-          <div class="card-body">
-            <img src="/img/avatar-pack/bat.png" alt="Avatar" class="avatar">
-
-            <h5 class="card-title">Special title treatment</h5>
-            <p class="card-text">12/9</p>
-            <a href="#" class="btn btn-success">Go somewhere</a>
-          </div>
-        </div>
-      </div>
-
     </div>
 
   </div>
@@ -85,10 +73,6 @@
     console.log("connection error " + err.message);
   });
 
-  socket.on("disconnect", function () {
-    console.log("disconnected"); // undefined
-  });
-
   socket.on("disconnected-forever", function (message) {
     console.log("disconnected-forever : " + message);
     $("#logout-form").submit();
@@ -109,21 +93,25 @@
       });
 
       if (item.user_name !== USER_NAME) {
+        universalDisabled = CONNECTION_DATA.active_game ? "disabled" : "";
 
-        let onClickFun = "challengeAFriend('" + item.user_name + "')";
+        let onClickFun = universalDisabled.length === 0 ? "challengeAFriend('" + item.user_name + "')" : null;
         let winPercentage = (item.win_amount / item.played_amount) * 100;
 
         winPercentage = Number.isNaN(winPercentage) ? 0 : Math.round(winPercentage);
 
-        usersRow.append('<div class="col-lg-3 col-md-4 col-sm-6 col-xs-12 user-card" id="user-' + item.user_name + '"><div class="card text-center"><div class="card-body"><img src="/img/avatar-pack/' + item.avatar_name + '" alt="Avatar" class="avatar"><h5 class="card-title">' + item.user_name + '</h5><p class="card-text">' + winPercentage + '%</p><a onClick="' + onClickFun + '" class="btn btn-success challenge-btn">Challenge</a></div></div></div>');
+        usersRow.append('<div class="col-lg-3 col-md-4 col-sm-6 col-xs-12 user-card" id="user-'
+          + item.user_name + '"><div class="card text-center"><div class="card-body"><img src="/img/avatar-pack/'
+          + item.avatar_name + '" alt="Avatar" class="avatar"><h5 class="card-title">'
+          + item.user_name + '</h5><p class="card-text">' + winPercentage + '%</p><a onClick="'
+          + onClickFun + '" class="btn btn-success challenge-btn ' + universalDisabled + '">Challenge</a></div></div></div>');
 
         //update the sent challenge requests
         if (item.challenges.received.includes(USER_NAME)) {
 
           let userCardBtn = changeTheChallengeBtn(item.user_name, "CHALLENGED");
           userCardBtn.removeClass("btn-success");
-          userCardBtn.addClass("btn-secondary disabled");
-
+          userCardBtn.addClass(universalDisabled.length === 0 ? "btn-secondary" : "btn-secondary disabled");
           userCardBtn.removeAttr('onclick');
         }
 
@@ -134,10 +122,42 @@
           userCardBtn.removeClass("btn-success");
           userCardBtn.addClass("btn-danger");
 
-          // userCardBtn.removeAttr('onclick');
+          userCardBtn.removeAttr('onclick');
+
+          if (universalDisabled.length === 0) {
+            userCardBtn.on('click', function () {
+              responseToAChallenge("accept", item.user_name);
+            });
+          }
+        }
+
+        // disable te challenge option if the player is in a game
+        if (item.active_game) {
+          let userCardBtn = $("#user-" + item.user_name).find(".challenge-btn")
+          userCardBtn.addClass(universalDisabled.length === 0 ? null : "disabled");
+          userCardBtn.removeAttr('onclick');
         }
       }
     });
+
+
+    if (CONNECTION_DATA.active_game) {
+      let userNameOfUpdateCard = null;
+
+      switch (CONNECTION_DATA.active_game.role) {
+        case "target":
+          userNameOfUpdateCard = CONNECTION_DATA.active_game.requester;
+          break;
+        case "requester":
+          userNameOfUpdateCard = CONNECTION_DATA.active_game.target;
+          break;
+      }
+
+      let userCardBtn = changeTheChallengeBtn(userNameOfUpdateCard, "JOIN GAME");
+      userCardBtn.removeClass("btn-danger btn-secondary disabled");
+      userCardBtn.addClass("btn-warning");
+      userCardBtn.removeAttr('onclick');
+    }
   });
 
   socket.on("old-connection-alert", function (data) {
@@ -159,27 +179,32 @@
     let userCardBtn = changeTheChallengeBtn(challengerUserName, "ACCEPT");
     userCardBtn.removeClass("btn-success");
     userCardBtn.addClass("btn-danger");
+
+    userCardBtn.removeAttr('onclick');
+
+    //add the challenge accept event
+    userCardBtn.on('click', function () {
+      responseToAChallenge("accept", challengerUserName);
+    });
+
   });
 
   socket.on("challenge-request-callback", function (data) {
 
     let status = data.status;
     let targetUserName = data.target_username;
+    let message = data.message;
 
-    let message = "";
     let alertType = "";
 
     switch (status) {
       case "success":
-        message = "Challenged completed. Wait till friend respond.";
         alertType = "success";
         break;
       case "failed":
-        message = "This action cannot be complete now ! Please try again.";
         alertType = "danger";
         break;
       case "error":
-        message = "Unexpected error occurred !";
         alertType = "warning";
         break;
     }
@@ -187,7 +212,7 @@
     createdAlert = $('<div class="alert alert-' + alertType + '" role="alert">' + message + '<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button></div>');
     alertHolder.append(createdAlert);
 
-    if (targetUserName) {
+    if (targetUserName !== null) {
       let userCardBtn = changeTheChallengeBtn(targetUserName, "CHALLENGED");
       userCardBtn.removeClass("btn-success");
       userCardBtn.addClass("btn-secondary disabled");
@@ -202,12 +227,98 @@
   }
 
   function challengeAFriend(userName) {
-    socket.emit("challenge",
-      {
-        "target_user_name": userName,
-        "requester_user_name": USER_NAME
-      });
+    socket.emit("challenge", { "target_user_name": userName, "requester_user_name": USER_NAME });
   }
+
+  function responseToAChallenge(type, challengerUserName) {
+    let responseDataObj = {
+      "target_user_name": USER_NAME,
+      "requester_user_name": challengerUserName,
+      "response": ""
+    };
+
+    switch (type) {
+      case "accept":
+        console.log("challenge accept response received");
+        responseDataObj.response = "accept";
+        break;
+      case "reject":
+        console.log("challenge reject response received");
+        responseDataObj.response = "reject";
+        break;
+    }
+
+    socket.emit("challenge-response", responseDataObj);
+  }
+
+  socket.on("challenge-response-callback", function (data) {
+
+    let alertType = null;
+    let alertMessage = null;
+
+    let changeBtnUserName = null;
+    let btnText = null;
+    let addClasses = null;
+    let onClickFunc = null;
+
+    if (data.target_user.name === USER_NAME) {
+      alertMessage = data.target_user.message;
+      changeBtnUserName = data.requester_user.name;
+
+    } else if (data.requester_user.name === USER_NAME) {
+      alertMessage = data.requester_user.message;
+      changeBtnUserName = data.target_user.name;
+    }
+
+    switch (data.status) {
+      case "accept":
+        alertType = "alert-success";
+        btnText = "JOIN GAME";
+        addClasses = "btn-warning";
+        onClickFunc = null;
+        break;
+      case "reject":
+        alertType = "alert-warning";
+        btnText = "CHALLENGE";
+        addClasses = "btn-success";
+        onClickFunc = function () {
+          challengeAFriend(changeBtnUserName);
+        };
+        break;
+      case "failed":
+        alertType = "alert-danger";
+        btnText = "CHALLENGE";
+        addClasses = "btn-success";
+        onClickFunc = function () {
+          challengeAFriend(changeBtnUserName);
+        };
+        break;
+      case "unknown":
+        alertType = "alert-danger";
+        break;
+      default:
+        alertType = "alert-light";
+    }
+
+    if (btnText) {
+      let userCardBtn = changeTheChallengeBtn(changeBtnUserName, btnText);
+      userCardBtn.removeClass("btn-danger btn-secondary disabled");
+      userCardBtn.addClass(addClasses);
+
+      userCardBtn.removeAttr('onclick');
+      userCardBtn.on('click', onClickFunc);
+    }
+
+    //show the alert
+    createdAlert = $('<div class="alert ' + alertType + '" role="alert">' + alertMessage + '<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button></div>');
+    alertHolder.append(createdAlert);
+
+    // update the connection data
+    if (data.updated_conn_data) {
+      console.log("updated conn data received " + JSON.stringify(data.updated_conn_data));
+      CONNECTION_DATA = data.updated_conn_data;
+    }
+  });
 
   function changeTheChallengeBtn(targetUserName, btnText) {
     let userCardBtn = $("#user-" + targetUserName).find(".challenge-btn");
@@ -220,10 +331,8 @@
   function updateTheChallengedUsersCardBtn(challengerId) {
 
     for (i = 0; i < connectionPool.length; i++) {
-      console.log("id : " + connectionPool[i].connection_id + " " + i);
 
       if (connectionPool[i].connection_id === challengerId) {
-        console.log("challenger data found : " + JSON.stringify(connectionPool[i]));
 
         let userName = connectionPool[i].user_name;
 

@@ -6,7 +6,7 @@ function SocketConnection(opts) {
     this.connection_id = opts.connection_id || '';
     this.avatar_name = opts.avatar_name || '';
     this.challenges = opts.challenges || new Challenges();
-    this.in_game = opts.in_game || false;
+    this.active_game = opts.active_game || null;
     this.played_amount = opts.played_amount || 0;
     this.win_amount = opts.win_amount || 0;
 }

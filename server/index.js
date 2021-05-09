@@ -4,6 +4,7 @@ const SocketConnection = require('../storage/models/socket-connection');
 const storageHelper = require('../storage/helper');
 const helper = require("../app/helpers");
 const Challenges = require('../storage/models/challenges');
+const ActiveGameData = require('../storage/models/active-game-data');
 
 const server = () => {
     console.log("server init started");
@@ -22,11 +23,7 @@ const server = () => {
 
         if (userNamesSet.has(userName)) {
             let connectionId = socket.id;
-
-            console.log("new connection occurred " + socket.id + " query : " + JSON.stringify(socket.handshake.query));
-
             connectionsPool = storageHelper.get("connections-pool");
-
             let existFound = null;
             let connData = null;
 
@@ -62,7 +59,7 @@ const server = () => {
                         connection_id: connectionId,
                         avatar_name: avatarName,
                         challenge_requests: new Challenges(),
-                        in_game: false,
+                        active_game: null,
                         played_amount: 0,
                         win_amount: 0
                     }
@@ -102,10 +99,19 @@ const server = () => {
             socket.on("challenge", (data) => {
                 sendTheGameRequest(socket, data.target_user_name, data.requester_user_name);
             });
+
+            socket.on("challenge-response", (data) => {
+                console.log("accept the challenge started " + JSON.stringify(data));
+                handleTheGameRequestResponse(socket, data.response, data.target_user_name, data.requester_user_name);
+            });
+
+            socket.on("disconnect", (reason) => {
+                //trigger when the clieny is disconnected
+                console.log("some one is disconnected " + reason + " " + socket.id);
+            });
         } else {
             console.log("user name is not found in the user names list");
             socket.emit("disconnected-forever", "Bye");
-
             socket.disconnect(true);
 
             connectionsPool = storageHelper.get("connections-pool");
@@ -130,7 +136,6 @@ const server = () => {
     }
 
     function sendTheGameRequest(socket, targetUserName, requesterUserName) {
-
         //get the current connection pool
         connectionsPool = storageHelper.get("connections-pool");
         connectionsPoolArray = Array.from(connectionsPool);
@@ -138,13 +143,102 @@ const server = () => {
         targetConnIndex = null;
         requesterConnIndex = null;
 
-        requestCallBackData = {};
+        requestCallBackData = {
+            status: null,
+            target_username: null,
+            message: null
+        };
 
         for (let i = 0; i < connectionsPoolArray.length; i++) {
             let conn = connectionsPoolArray[i];
 
             if (targetConnIndex === null || requesterConnIndex === null) {
 
+                if (targetConnIndex === null && conn.user_name === targetUserName) {
+                    targetConnIndex = i;
+                } else if (requesterConnIndex === null && conn.user_name === requesterUserName) {
+                    requesterConnIndex = i;
+                }
+            } else {
+                console.log("both the data is not null");
+                break;
+            }
+        }
+
+        if (requesterConnIndex !== null && targetConnIndex !== null) {
+            let requestConnData = connectionsPoolArray[requesterConnIndex];
+            let targetConnData = connectionsPoolArray[targetConnIndex];
+
+            let challengesAmountValidation = requestConnData.challenges.sent.length <= 10 && targetConnData.challenges.received.length <= 5;
+
+            if (challengesAmountValidation && (requestConnData.active_game === null && targetConnData.active_game === null)) {
+
+                connectionsPoolArray[requesterConnIndex].challenges.sent.push(targetUserName);
+                connectionsPoolArray[targetConnIndex].challenges.received.push(requesterUserName);
+
+                requestCallBackData.status = "success";
+                requestCallBackData.target_username = targetUserName;
+                requestCallBackData.message = "You challenged to " + targetUserName + " !";
+
+                storageHelper.storeAKey("connections-pool", new Set(connectionsPool));
+
+                //send the requests to target
+                io.to(targetConnData.connection_id).emit('challenge-request',
+                    {
+                        challenger: {
+                            user_name: requesterUserName
+                        }
+                    });
+            } else {
+                requestCallBackData.status = "failed";
+
+                //customize the error messages
+                if (!challengesAmountValidation) {
+                    requestCallBackData.message = "Maximum challenge request amount is exceeded. Please try again later !"
+                } else if (requestConnData.active_game !== null) {
+                    requestCallBackData.message = "Another game is in progress. Please end the current game to challenge again !"
+                } else if (targetConnData.active_game !== null) {
+                    requestCallBackData.message = "User is in another game. Please try again later !"
+                } else {
+                    requestCallBackData.message = "Unexpected error occurred. Please try again later !"
+                }
+            }
+
+        } else {
+            requestCallBackData.status = "error";
+            requestCallBackData.message = "Unexpected error occurred !";
+        }
+
+        //send call back to requester
+        socket.emit("challenge-request-callback", requestCallBackData);
+    }
+
+    function handleTheGameRequestResponse(socket, responseType, targetUserName, requesterUserName) {
+        console.log("accept game request handler started " + targetUserName + " " + requesterUserName);
+
+        connectionsPool = storageHelper.get("connections-pool");
+        connectionsPoolArray = Array.from(connectionsPool);
+
+        targetConnIndex = null;
+        requesterConnIndex = null;
+
+        responseCallbackData = {
+            target_user: {
+                name: targetUserName,
+                message: ""
+            },
+            requester_user: {
+                name: requesterUserName,
+                message: ""
+            },
+            status: null,
+            updated_conn_data: null
+        };
+
+        for (let i = 0; i < connectionsPoolArray.length; i++) {
+            let conn = connectionsPoolArray[i];
+
+            if (targetConnIndex === null || requesterConnIndex === null) {
                 if (targetConnIndex === null && conn.user_name === targetUserName) {
                     console.log("target index is found");
                     targetConnIndex = i;
@@ -158,50 +252,87 @@ const server = () => {
             }
         }
 
-        if (requesterConnIndex !== null) {
-            let requestConnData = connectionsPoolArray[requesterConnIndex];
+        if (targetConnIndex === null || requesterConnIndex === null) {
+            responseCallbackData.target_user.message = "This action cannot be completed ! Please try again later.";
+            responseCallbackData.requester_user.message = "Challenge request failed ! Please try again later.";
+            responseCallbackData.status = "failed";
+        } else {
 
-            if (requestConnData.challenges.sent.length <= 10) {
-                connectionsPoolArray[requesterConnIndex].challenges.sent.push(targetUserName);
-            } else {
-                console.log("maximum sent requests amount is exceeded");
-                requestCallBackData = { status: "failed" };
+            if (connectionsPoolArray[targetConnIndex].active_game || connectionsPoolArray[requesterConnIndex].active_game) {
+                //avoid the target from accepting other challanges when another active game is exist
+                responseType = "unknown";
             }
-        }
 
-        if (targetConnIndex !== null) {
-            let targetConnData = connectionsPoolArray[targetConnIndex];
+            switch (responseType) {
+                case "accept":
+                    console.log("accept challenge request received");
 
-            if (targetConnData.challenges.received.length <= 5) {
-                console.log("challenge request send to " + requesterUserName + " to " + targetUserName);
-
-                socket.broadcast.to(targetConnData.connection_id).emit('challenge-request',
-                    {
-                        challenger: {
-                            user_name: requesterUserName
-                        }
+                    // add active game data for the requester and the target
+                    activeGameData = new ActiveGameData({
+                        role: null,
+                        requester: requesterUserName,
+                        target: targetUserName,
+                        status: "pending",
+                        room_name: null
                     });
 
-                //update the target user challenge requests set
-                connectionsPoolArray[targetConnIndex].challenges.received.push(requesterUserName);
+                    // deep copying to different new objects
+                    activeGameDataRequester = JSON.parse(JSON.stringify(activeGameData));
+                    activeGameDataRequester.role = "requester";
 
-                requestCallBackData = { status: "success" };
-            } else {
-                requestCallBackData = { status: "failed" };
+                    activeGameDataTarget = JSON.parse(JSON.stringify(activeGameData));
+                    activeGameDataTarget.role = "target";
+
+                    connectionsPoolArray[targetConnIndex].active_game = activeGameDataTarget;
+                    connectionsPoolArray[requesterConnIndex].active_game = activeGameDataRequester;
+
+                    //data will updated in the below if
+
+                    responseCallbackData.target_user.message = "Challenge accepted successfully !";
+                    responseCallbackData.requester_user.message = targetUserName + " accepted your challenge !";
+                    responseCallbackData.status = "accept";
+                    break;
+                case "reject":
+                    console.log("reject challenge request received");
+
+                    responseCallbackData.target_user.message = "Challenge rejected successfully !";
+                    responseCallbackData.requester_user.message = targetUserName + " reject your challenge !";
+                    responseCallbackData.status = "reject";
+                    break;
+                case "unknown":
+                    responseCallbackData.target_user.message = "User is in another game. Please try again later !";
+                    responseCallbackData.requester_user.message = "User is in another game. Please try again later !";
+                    responseCallbackData.status = "unknown";
+                    break;
+                default:
+                    console.log("unknown challenge reponse type received");
+
+                    responseCallbackData.target_user.message = "Unexpected error occurred ! Please try again later !";
+                    responseCallbackData.requester_user.message = "Unexpected error occurred ! Please try again later !";
+                    responseCallbackData.status = "default";
             }
-        }
 
-        if (requesterConnIndex !== null && targetConnIndex !== null) {
-            if (requestCallBackData.status === "success") {
+            if (responseType === "accept" || responseType === "reject") {
+                let requesterIndex = connectionsPoolArray[targetConnIndex].challenges.received.indexOf(requesterUserName);
+                let targetIndex = connectionsPoolArray[requesterConnIndex].challenges.sent.indexOf(targetUserName);
+
+                connectionsPoolArray[targetConnIndex].challenges.received.splice(requesterIndex, 1);
+                connectionsPoolArray[requesterConnIndex].challenges.sent.splice(targetIndex, 1);
+
                 storageHelper.storeAKey("connections-pool", new Set(connectionsPool));
             }
-        } else {
-            requestCallBackData = { status: "error" };
         }
 
-        //send call back to requester
-        requestCallBackData["target_username"] = targetUserName;
-        socket.emit("challenge-request-callback", requestCallBackData);
+        //send the response message to the target client and requester
+        responseCallbackData.updated_conn_data = connectionsPoolArray[targetConnIndex];
+        socket.emit("challenge-response-callback", responseCallbackData);
+
+        if (requesterConnIndex !== null) {
+            let requesterConnData = connectionsPoolArray[requesterConnIndex];
+
+            responseCallbackData.updated_conn_data = requesterConnData;
+            io.to(requesterConnData.connection_id).emit("challenge-response-callback", responseCallbackData);
+        }
     }
 
     //middleware for validate user name
