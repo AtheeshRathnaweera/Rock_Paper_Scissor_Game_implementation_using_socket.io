@@ -11,7 +11,7 @@ module.exports = (app) => {
 
 router.get('/', routeProtector, (req, res, next) => {
   res.render('game', {
-    title: 'Home',
+    title: 'Game',
     server_url: config.server_url
   });
 });

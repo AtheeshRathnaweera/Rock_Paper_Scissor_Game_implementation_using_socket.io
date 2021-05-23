@@ -286,7 +286,7 @@ const server = () => {
                     connectionsPoolArray[targetConnIndex].active_game = activeGameDataTarget;
                     connectionsPoolArray[requesterConnIndex].active_game = activeGameDataRequester;
 
-                    //data will updated in the below if
+                    //data will updated in the bottom if
 
                     responseCallbackData.target_user.message = "Challenge accepted successfully !";
                     responseCallbackData.requester_user.message = targetUserName + " accepted your challenge !";

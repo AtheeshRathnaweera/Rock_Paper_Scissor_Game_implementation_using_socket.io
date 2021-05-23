@@ -102,42 +102,216 @@ a {
   border-radius: 50%;
 }
 
-.users-section .user-card .challenge-btn{
+.users-section .user-card .challenge-btn {
   color: white;
   text-transform: capitalize;
 }
 
-.users-section .user-card .challenge-btn:hover{
+.users-section .user-card .challenge-btn:hover {
   color: white !important;
 }
 
 /* alerts holder */
-.alerts-holder{
+
+.alerts-holder {
   position: absolute;
   bottom: 0;
-  right:0;
+  right: 0;
   margin: 3vh 1vw 3vh 1vw;
   width: 30%;
   z-index: 2;
 }
 
-.alerts-holder .alert{
+.alerts-holder .alert {
   z-index: 2;
 }
 
-#logout-form .user-name{
+#logout-form .user-name {
   margin-right: 1vw;
 }
 
-.disabled-link{
-  
+.disabled-link {}
+
+/* game modal */
+
+.modal-lg {
+  max-width: 98% !important;
 }
 
+.modal-lg {
+  max-width: 50% !important;
+}
+
+/*    timer*/
+
+@import url("https://fonts.googleapis.com/css?family=Lato:400,700|Montserrat:900");
+/*    new css*/
+
+.info-card {
+  color: #F6F4F3;
+  text-align: center;
+  text-transform: uppercase;
+  font-family: "Lato", sans-serif;
+  font-size: 0.7em;
+  letter-spacing: 5px;
+  float: left;
+}
+
+.numbers {
+  font-family: "Montserrat", sans-serif;
+  color: #183059;
+  font-size: 3.5em;
+}
+
+.seconds, .rounds {
+  display: inline-block;
+  padding: 15px;
+  width: auto;
+  border-radius: 5px;
+}
+
+.seconds {
+  background: #F6F4F3;
+  color: #183059;
+}
+
+.rounds {
+  background: #75c15b;
+  color: #F6F4F3;
+}
+
+.rounds .numbers {
+  color: #F6F4F3;
+}
+
+.game-message-holder {
+  width: 100%;
+  height: 100%;
+  margin: auto 2vh auto 2vh;
+  text-align: center;
+  font-size: 2.5rem;
+  color: white;
+  text-transform: uppercase;
+}
+
+.options-holder {
+  width: 90%;
+  text-align: center;
+  margin: auto auto auto auto !important;
+  padding: 3vh auto 3vh auto !important;
+  overflow: hidden;
+}
+
+.options-holder img {
+  height: auto;
+  width: 75%;
+  cursor: pointer;
+  margin: 20px 1vw 20px 1vw;
+}
+
+.options-holder img:hover {
+  transform: scale(1.1);
+}
+
+.modal-content {
+  border: none !important;
+}
+
+.btn-container {
+  background-color: #ffffff;
+  display: flex;
+  position: relative;
+  border-radius: 6px;
+  border-color: lightgray;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+  margin: 2vh 10px 2vh 10px;
+}
+
+.left-side {
+  background-color: #5de2a3;
+  width: 90px;
+  border-radius: 4px;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: 0.3s;
+  flex-shrink: 0;
+  overflow: hidden;
+  color: white;
+  padding: 1vh;
+  font-size: 0.9rem;
+}
+
+.right-side {
+  width: calc(100% - 90px);
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  justify-content: space-between;
+  white-space: nowrap;
+  font-size: 0.9rem;
+}
+
+.new {
+  font-family: "Lexend Deca", sans-serif;
+  margin: auto 30px auto 30px;
+}
+
+.game-data-btn-holder {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+  -webkit-box-pack: end;
+  -ms-flex-pack: end;
+  justify-content: center;
+  /*        border-top: 1px solid #e9ecef;*/
+}
+
+.btn-round {
+  text-transform: uppercase;
+  border-radius: 25px;
+  border: none;
+  padding: 10px 50px 10px 50px !important;
+  float: right;
+}
+
+.quit-btn {
+  background-color: transparent;
+}
+
+.quit-btn:hover {
+  background-color: #183059;
+}
+
+.modal-backdrop {
+  background-color: white;
+  opacity: 1 !important;
+}
+
+@media screen and (min-width: 767px) and (max-width: 1200px) {
+  .modal-lg {
+    max-width: 97% !important;
+  }
+  .seconds, .rounds {
+    padding: 10px;
+  }
+  .game-message-holder {
+    margin: auto 2vh auto 2vh;
+    font-size: 2rem !important;
+  }
+  .btn-round {
+    padding: 10px 40px 10px 40px !important;
+  }
+}
 
 /* for phones */
 
-@media only screen and (max-width: 600px) {
-  .body-holder{
+@media screen and (min-width: 300px) and (max-width: 767px) {
+  .body-holder {
     padding-top: 3vh;
   }
   .user-search-holder {
@@ -148,5 +322,52 @@ a {
   }
   .users-section .user-card {
     padding: 1vh 5vw;
+  }
+  .modal-lg {
+    max-width: 98% !important;
+  }
+  .info-card {
+    font-size: 6px;
+    letter-spacing: 1px;
+  }
+  .numbers {
+    font-size: 22px;
+  }
+  .seconds, .rounds {
+    padding: 5px;
+  }
+  .game-message-holder {
+    margin: auto 2vh auto 2vh;
+    font-size: 1rem !important;
+  }
+  .btn-round {
+    padding: 8px 20px 8px 20px !important;
+  }
+  .options-holder {
+    width: 100%;
+  }
+  .options-holder img {
+    width: 100%;
+    margin: 10px 0 10px 0;
+  }
+  .btn-container {
+    margin: 2vh 5px 2vh 5px;
+  }
+  .left-side {
+    width: 60px;
+    padding: 0.5vh;
+    font-size: 0.7rem;
+  }
+  .right-side {
+    width: calc(100% - 70px);
+    font-size: 0.7rem;
+  }
+  .new {
+    margin: auto 15px auto 15px;
+  }
+  .btn-round {
+    padding: 10px 20px 10px 20px !important;
+    font-size: 13px;
+    border-radius: 0px;
   }
 }

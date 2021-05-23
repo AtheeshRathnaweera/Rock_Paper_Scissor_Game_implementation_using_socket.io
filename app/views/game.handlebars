@@ -6,9 +6,10 @@
 
 <script>
     var URL = "{{server_url}}";
-    //   var USER_NAME = "{{session.user_name}}";
+    var USER_NAME = "{{session.user_name}}";
+</script>
 
-    var socket = io(URL, { autoConnect: false });
+    {{!-- var socket = io(URL, { autoConnect: false });
     {
         {
             socket.auth = { username: USER_NAME };
@@ -36,6 +37,4 @@
 
     socket.on("connect_error", (err) => {
         console.log("connection error " + err.message);
-    });
-
-</script>
+    }); --}}
