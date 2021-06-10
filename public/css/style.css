@@ -130,8 +130,6 @@ a {
   margin-right: 1vw;
 }
 
-.disabled-link {}
-
 /* game modal */
 
 .modal-lg {
@@ -276,7 +274,6 @@ a {
   border-radius: 25px;
   border: none;
   padding: 10px 50px 10px 50px !important;
-  float: right;
 }
 
 .quit-btn {
@@ -290,6 +287,115 @@ a {
 .modal-backdrop {
   background-color: white;
   opacity: 1 !important;
+}
+
+/* game loading modal */
+
+.vertical-center {
+  display: -ms-flexbox;
+  display: -webkit-flex;
+  display: flex;
+  -ms-flex-align: center;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  align-items: center;
+}
+
+#gameLoadingModal .card {
+  height: 65vh;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+}
+
+#gameLoadingModal .message {
+  width: 100%;
+  text-align: center;
+  font-size: 1.6rem;
+  margin-bottom: 50px;
+}
+#gameLoadingModal .btn-round {
+  background-color: #DC143C;
+  margin: 40px auto auto auto;
+}
+
+.loader {
+  text-align: center;
+  vertical-align: middle;
+  position: relative;
+  display: flex;
+  background: white;
+  /* padding: 20% 150px; */
+}
+
+.loader div {
+  margin: auto;
+  width: auto;
+  display: flex;
+}
+
+.loader span {
+  display: block;
+  width: 20px;
+  height: 20px;
+  background: #eee;
+  border-radius: 50%;
+  margin: 0 5px;
+  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
+}
+
+.loader span:nth-child(2) {
+  background: #f07e6e;
+}
+
+.loader span:nth-child(3) {
+  background: #84cdfa;
+}
+
+.loader span:nth-child(4) {
+  background: #5ad1cd;
+}
+
+.loader span:not(:last-child) {
+  animation: animate 1.5s linear infinite;
+}
+
+@keyframes animate {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(30px);
+  }
+}
+
+.loader span:last-child {
+  animation: jump 1.5s ease-in-out infinite;
+}
+
+@keyframes jump {
+  0% {
+    transform: translate(0, 0);
+  }
+  10% {
+    transform: translate(10px, -10px);
+  }
+  20% {
+    transform: translate(20px, 10px);
+  }
+  30% {
+    transform: translate(30px, -50px);
+  }
+  70% {
+    transform: translate(-150px, -50px);
+  }
+  80% {
+    transform: translate(-140px, 10px);
+  }
+  90% {
+    transform: translate(-130px, -10px);
+  }
+  100% {
+    transform: translate(-120px, 0);
+  }
 }
 
 @media screen and (min-width: 767px) and (max-width: 1200px) {
@@ -340,9 +446,6 @@ a {
     margin: auto 2vh auto 2vh;
     font-size: 1rem !important;
   }
-  .btn-round {
-    padding: 8px 20px 8px 20px !important;
-  }
   .options-holder {
     width: 100%;
   }
@@ -369,5 +472,16 @@ a {
     padding: 10px 20px 10px 20px !important;
     font-size: 13px;
     border-radius: 0px;
+  }
+  #gameLoadingModal .card {
+    height: 45vh;
+  }
+  #gameLoadingModal .btn-round {
+    border-radius: 20px;
+    margin: 30px auto auto auto;
+  }
+  #gameLoadingModal .message {
+    font-size: 1rem;
+    margin-bottom: 30px;
   }
 }

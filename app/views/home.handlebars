@@ -25,10 +25,38 @@
 
 </div>
 
-<button type="button" class="btn btn-primary" data-toggle="modal" data-target="#exampleModalCenter"
-  data-backdrop='static' data-keyboard='false'>
-  Launch demo modal
+<button type="button" class="btn btn-primary" data-toggle="modal" data-target="#gameLoadingModal" data-backdrop='static'
+  data-keyboard='false'>
+  Launch load modal
 </button>
+
+<div class="modal fade" id="gameLoadingModal" tabindex="-1" role="dialog" aria-labelledby="gameLoadingModal"
+  aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+    <div class="modal-content">
+      <div class="card vertical-center" style="width: 100% !important;">
+        <div style="margin: auto;">
+          <div class="message">Please wait till your opponent join !</div>
+          <div class="loader">
+            <div>
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+          </div>
+          <div style="width: 100%; text-align: center;">
+            <button class="btn btn-primary btn-round">
+              Leave Game
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
 
 <!-- Modal -->
 <div class="modal fade" id="exampleModalCenter" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle"
@@ -118,7 +146,7 @@
         </div>
       </div>
       <div class="modal-footer" style="justify-content: flex-end; background: #234681; padding: 0 !important;">
-        <button class="btn btn-primary btn-round quit-btn" style="width: 100%;">
+        <button class="btn btn-primary btn-round quit-btn" style="width: 100%; float: right; ">
           End Game
         </button>
       </div>
@@ -177,6 +205,10 @@
   socket.on("disconnected-forever", function (message) {
     console.log("disconnected-forever : " + message);
     $("#logout-form").submit();
+  });
+
+  socket.on("join-to-game-response", (arg) => {
+    console.log("message from room : " + arg); // world
   });
 
   socket.on("connection-pool-update", function (data) {
@@ -377,7 +409,7 @@
         btnText = "JOIN GAME";
         addClasses = "btn-warning";
         onClickFunc = function () {
-          goToGamePage();
+          joinToGame();
         }
         break;
       case "reject":
@@ -452,9 +484,13 @@
     }
   }
 
-  function goToGamePage() {
-    window.history.replaceState({}, '', '/game');
+  function joinToGame() {
+    console.log("join to game started " + USER_NAME);
+    socket.emit("join-game", { "user_name": USER_NAME });
   }
-
-
 </script>
+{{!--
+$("#test-room-btn").click(function () {
+console.log("test room btn started");
+socket.emit("room-test");
+}); --}}

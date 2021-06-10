@@ -6,6 +6,8 @@ const helper = require("../app/helpers");
 const Challenges = require('../storage/models/challenges');
 const ActiveGameData = require('../storage/models/active-game-data');
 
+const { v4: uuidv4 } = require('uuid');
+
 const server = () => {
     console.log("server init started");
 
@@ -103,6 +105,11 @@ const server = () => {
             socket.on("challenge-response", (data) => {
                 console.log("accept the challenge started " + JSON.stringify(data));
                 handleTheGameRequestResponse(socket, data.response, data.target_user_name, data.requester_user_name);
+            });
+
+            socket.on("join-game", (data) => {
+                console.log("join to a game started " + JSON.stringify(data));
+                joinToGameRoom(socket, data.user_name);
             });
 
             socket.on("disconnect", (reason) => {
@@ -267,13 +274,16 @@ const server = () => {
                 case "accept":
                     console.log("accept challenge request received");
 
+                    //create a new room name
+                    let room_name = "room-" + uuidv4();
+
                     // add active game data for the requester and the target
                     activeGameData = new ActiveGameData({
                         role: null,
                         requester: requesterUserName,
                         target: targetUserName,
                         status: "pending",
-                        room_name: null
+                        room_name: room_name
                     });
 
                     // deep copying to different new objects
@@ -287,7 +297,6 @@ const server = () => {
                     connectionsPoolArray[requesterConnIndex].active_game = activeGameDataRequester;
 
                     //data will updated in the bottom if
-
                     responseCallbackData.target_user.message = "Challenge accepted successfully !";
                     responseCallbackData.requester_user.message = targetUserName + " accepted your challenge !";
                     responseCallbackData.status = "accept";
@@ -333,6 +342,40 @@ const server = () => {
             responseCallbackData.updated_conn_data = requesterConnData;
             io.to(requesterConnData.connection_id).emit("challenge-response-callback", responseCallbackData);
         }
+    }
+
+    function joinToGameRoom(socket, userName) {
+        connectionsPool = storageHelper.get("connections-pool");
+        connectionsPoolArray = Array.from(connectionsPool);
+        let gameData = null;
+
+        for (let i = 0; i < connectionsPoolArray.length; i++) {
+            let conn = connectionsPoolArray[i];
+
+            if (conn.user_name === userName) {
+                gameData = conn.active_game;
+
+                console.log("user data is found " + JSON.stringify(gameData));
+                break;
+            } else {
+                console.log("user data is not found");
+            }
+        }
+
+        console.log("this is the found data : "+JSON.stringify(gameData));
+
+        socket.emit("join-to-game-response","message after join to the game");
+
+        // console.log("room created : " + room_name);
+        // socket.join(room_name);
+
+        // let mapObject = io.sockets.adapter.rooms // return Map Js Object
+        // let clientsInRoom = new Set(mapObject.get(room_name))
+
+        // var numClients = clientsInRoom ? clientsInRoom.size : 0;
+        // console.log('Room ' + room_name + ' now has ' + numClients + ' client(s)');
+
+        // io.to(room_name).emit("hello", "tets message from room");
     }
 
     //middleware for validate user name
