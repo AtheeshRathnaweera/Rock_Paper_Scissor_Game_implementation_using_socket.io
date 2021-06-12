@@ -7,6 +7,8 @@ const Challenges = require('../storage/models/challenges');
 const ActiveGameData = require('../storage/models/active-game-data');
 
 const { v4: uuidv4 } = require('uuid');
+const RoomData = require('../storage/models/room-data');
+const e = require('express');
 
 const server = () => {
     console.log("server init started");
@@ -19,6 +21,7 @@ const server = () => {
     });
 
     io.on("connection", (socket) => {
+
         let userName = socket.handshake.query.user_name;
 
         userNamesSet = storageHelper.get("user-names-list");
@@ -108,12 +111,11 @@ const server = () => {
             });
 
             socket.on("join-game", (data) => {
-                console.log("join to a game started " + JSON.stringify(data));
-                joinToGameRoom(socket, data.user_name);
+                joinToGameRoom(socket, data.user_name, data.opponent_user_name);
             });
 
             socket.on("disconnect", (reason) => {
-                //trigger when the clieny is disconnected
+                //trigger when the client is disconnected
                 console.log("some one is disconnected " + reason + " " + socket.id);
             });
         } else {
@@ -277,6 +279,20 @@ const server = () => {
                     //create a new room name
                     let room_name = "room-" + uuidv4();
 
+                    let rooms = storageHelper.get("rooms");
+
+                    //store the new room data to rooms set
+                    let newRoomData = new RoomData({
+                        name: room_name,
+                        status: "initialized",
+                        clients: [requesterUserName, targetUserName],
+                        activeAmount: 0
+                    });
+
+                    rooms.add(newRoomData);
+                    storageHelper.storeAKey("rooms", new Set(rooms));
+                    //store the new room data to rooms set
+
                     // add active game data for the requester and the target
                     activeGameData = new ActiveGameData({
                         role: null,
@@ -296,7 +312,7 @@ const server = () => {
                     connectionsPoolArray[targetConnIndex].active_game = activeGameDataTarget;
                     connectionsPoolArray[requesterConnIndex].active_game = activeGameDataRequester;
 
-                    //data will updated in the bottom if
+                    // data will updated in the bottom if
                     responseCallbackData.target_user.message = "Challenge accepted successfully !";
                     responseCallbackData.requester_user.message = targetUserName + " accepted your challenge !";
                     responseCallbackData.status = "accept";
@@ -344,39 +360,124 @@ const server = () => {
         }
     }
 
-    function joinToGameRoom(socket, userName) {
+    function joinToGameRoom(socket, userName, opponentUserName) {
+        console.log("join to game room started "+userName+" "+opponentUserName);
+
         connectionsPool = storageHelper.get("connections-pool");
         connectionsPoolArray = Array.from(connectionsPool);
-        let gameData = null;
+
+        let status = false;
+        let message = "";
+
+        let userIndex = null;
+        let opponentIndex = null;
 
         for (let i = 0; i < connectionsPoolArray.length; i++) {
-            let conn = connectionsPoolArray[i];
 
-            if (conn.user_name === userName) {
-                gameData = conn.active_game;
+            if (connectionsPoolArray[i].user_name === userName) {
+                userIndex = i;
+            } else if (connectionsPoolArray[i].user_name === opponentUserName) {
+                opponentIndex = i;
+            }
 
-                console.log("user data is found " + JSON.stringify(gameData));
+            if (userIndex !== null && opponentIndex !== null) {
                 break;
-            } else {
-                console.log("user data is not found");
             }
         }
 
-        console.log("this is the found data : "+JSON.stringify(gameData));
+        if (userIndex !== null && opponentIndex !== null) {
+            let conn = connectionsPoolArray[userIndex];
 
-        socket.emit("join-to-game-response","message after join to the game");
+            let rooms = storageHelper.get("rooms");
+            let roomsArray = Array.from(rooms);
 
-        // console.log("room created : " + room_name);
-        // socket.join(room_name);
+            let roomIndex = null;
 
-        // let mapObject = io.sockets.adapter.rooms // return Map Js Object
-        // let clientsInRoom = new Set(mapObject.get(room_name))
+            for (let n = 0; n < roomsArray.length; n++) {
+                if (roomsArray[n].name === conn.active_game.room_name) {
+                    roomIndex = n;
+                    break;
+                }
+            }
 
-        // var numClients = clientsInRoom ? clientsInRoom.size : 0;
-        // console.log('Room ' + room_name + ' now has ' + numClients + ' client(s)');
+            if (roomIndex === null) {
+                status = "error";
+                message = "Cannot connect to the requested game ! Please try again later.";
+                socket.emit("join-to-game-response", { "status": status, "message": message });
+                return;
+            }
 
-        // io.to(room_name).emit("hello", "tets message from room");
+            if (conn.active_game.status !== "pending") {
+                status = "error";
+                message = "Already in the game !";
+                socket.emit("join-to-game-response", { "status": status, "message": message });
+                return;
+            }
+
+            if (roomsArray[roomIndex].clients.includes(userName)) {
+                //join to the room
+                socket.join(conn.active_game.room_name);
+
+                status = "success";
+                message = "Successfully joined to the game !";
+                messageForOpponent = userName + " joined to the game !";
+
+                let gameStatus = null;
+
+                // update rooms data
+                roomsArray[roomIndex].activeAmount = roomsArray[roomIndex].activeAmount + 1;
+
+                if (roomsArray[roomIndex].activeAmount === 2) {
+                    console.log("room is ready and full");
+                    gameStatus = "ready";
+
+                    roomsArray[roomIndex].status = "in_use";
+                    connectionsPoolArray[userIndex].active_game.status = "started";
+                } else {
+                    gameStatus = "waiting";
+
+                    roomsArray[roomIndex].status = "created";
+                    connectionsPoolArray[userIndex].active_game.status = "waiting";
+
+                    // send the notification for other user
+                }
+
+                storageHelper.storeAKey("rooms", new Set(roomsArray));
+                storageHelper.storeAKey("connections-pool", new Set(connectionsPool));
+
+                socket.emit("join-to-game-response",
+                    { "status": status, "message": message, "game_status": gameStatus });
+                io.to(connectionsPoolArray[opponentIndex].connection_id).emit("join-to-game-response",
+                    { "status": status, "message": messageForOpponent, "game_status": gameStatus });
+
+                // trigger someone join event
+                io.to(conn.active_game.room_name).emit("someone-joined-to-room",
+                    { "game_status": gameStatus, "user_name": userName });
+            } else {
+                status = "error";
+                message = "Permission issue occurred ! Please try again later.";
+                socket.emit("join-to-game-response", { "status": status, "message": message });
+            }
+        } else {
+            status = "error";
+            message = "User data not found ! Please try again later.";
+            socket.emit("join-to-game-response", { "status": status, "message": message });
+        }
+
     }
+
+    io.of("/").adapter.on("join-room", (room, id) => {
+        console.log(`------------ socket ${id} has joined room ${room}`);
+        io.to(room).emit("join-to-room-trigger", {});
+    });
+
+    io.of("/").adapter.on("create-room", (room) => {
+        console.log(`room ${room} was created`);
+    });
+
+    io.of("/").adapter.on("leave-room", (room, id) => {
+        console.log(`${id} is leaved the ${room}`);
+    });
 
     //middleware for validate user name
     io.use((socket, next) => {
