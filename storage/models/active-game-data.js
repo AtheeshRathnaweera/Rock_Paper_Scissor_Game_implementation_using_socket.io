@@ -7,4 +7,6 @@ function ActiveGameData(opts) {
     this.room_name = opts.room_name || null;
 }
 
+// statuses -> pending, waiting, started
+
 module.exports = ActiveGameData;
